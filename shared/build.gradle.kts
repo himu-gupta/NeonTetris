@@ -50,6 +50,7 @@ kotlin {
 
     getByName("desktopMain").dependencies {
       implementation(compose.desktop.currentOs)
+      implementation(libs.kotlinx.coroutines.swing)
     }
 
     commonTest.dependencies {
