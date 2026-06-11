@@ -1,70 +1,486 @@
 package com.himugupta.neontetris.ui.game
 
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.animateOffsetAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.himugupta.neontetris.core.game.BoardHeight
+import com.himugupta.neontetris.core.game.BoardWidth
+import com.himugupta.neontetris.core.game.CellPosition
+import com.himugupta.neontetris.core.game.FallingPiece
+import com.himugupta.neontetris.core.game.GameAction
+import com.himugupta.neontetris.core.game.GameState
+import com.himugupta.neontetris.core.game.GameStatus
+import com.himugupta.neontetris.core.game.HiddenRows
+import com.himugupta.neontetris.core.game.Tetromino
 import com.himugupta.neontetris.theme.DeepSpace
 import com.himugupta.neontetris.theme.GridLine
 import com.himugupta.neontetris.theme.InkMuted
+import com.himugupta.neontetris.theme.NeonBlue
+import com.himugupta.neontetris.theme.NeonCyan
+import com.himugupta.neontetris.theme.NeonGreen
+import com.himugupta.neontetris.theme.NeonOrange
 import com.himugupta.neontetris.theme.NeonPink
+import com.himugupta.neontetris.theme.NeonViolet
+import com.himugupta.neontetris.theme.NeonYellow
+import com.himugupta.neontetris.theme.Panel
 import com.himugupta.neontetris.ui.components.NeonButton
-import com.himugupta.neontetris.ui.components.StatPanel
 
 @Composable
-fun GameScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
-  Column(
+fun GameScreen(
+  onBack: () -> Unit,
+  modifier: Modifier = Modifier,
+  viewModel: GameViewModel = viewModel { GameViewModel() },
+) {
+  val state by viewModel.state.collectAsStateWithLifecycle()
+  val lifecycleOwner = LocalLifecycleOwner.current
+
+  DisposableEffect(lifecycleOwner) {
+    val observer = LifecycleEventObserver { _, event ->
+      if (event == Lifecycle.Event.ON_STOP) viewModel.dispatch(GameAction.Pause)
+    }
+    lifecycleOwner.lifecycle.addObserver(observer)
+    onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+  }
+
+  GameContent(
+    state = state,
+    onAction = viewModel::dispatch,
+    onBack = onBack,
+    modifier = modifier,
+  )
+}
+
+@Composable
+internal fun GameContent(
+  state: GameState,
+  onAction: (GameAction) -> Unit,
+  onBack: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
+  Box(
     modifier =
       modifier
         .fillMaxSize()
         .background(Brush.verticalGradient(listOf(DeepSpace, MaterialTheme.colorScheme.background)))
         .safeDrawingPadding()
-        .padding(16.dp),
-    horizontalAlignment = Alignment.CenterHorizontally,
-    verticalArrangement = Arrangement.spacedBy(14.dp),
+        .padding(horizontal = 12.dp, vertical = 10.dp),
   ) {
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-      StatPanel("Score", "0", Modifier.weight(1f))
-      StatPanel("Level", "1", Modifier.weight(1f))
-      StatPanel("Lines", "0", Modifier.weight(1f))
-    }
-    Box(
-      modifier =
-        Modifier.weight(1f).aspectRatio(0.5f)
-          .background(DeepSpace, RoundedCornerShape(16.dp))
-          .border(1.dp, GridLine, RoundedCornerShape(16.dp)),
-      contentAlignment = Alignment.Center,
+    Column(
+      modifier = Modifier.fillMaxSize(),
+      horizontalAlignment = Alignment.CenterHorizontally,
+      verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-      Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text("ENGINE CHECKPOINT", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelLarge)
-        Text("Gameplay board loading next", color = InkMuted)
-      }
-    }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-      repeat(5) {
-        Spacer(
-          Modifier.weight(1f).size(48.dp)
-            .background(if (it == 2) NeonPink else MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+      GameHud(state, onPause = { onAction(GameAction.Pause) })
+      Row(
+        modifier = Modifier.fillMaxWidth().weight(1f),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.Top,
+      ) {
+        SidePreview(label = "HOLD", piece = state.holdPiece, modifier = Modifier.width(58.dp))
+        GameBoard(
+          state = state,
+          onAction = onAction,
+          modifier = Modifier.weight(1f).fillMaxHeight(),
         )
+        Column(
+          modifier = Modifier.width(58.dp),
+          verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+          Text(
+            "NEXT",
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
+            color = InkMuted,
+            style = MaterialTheme.typography.labelSmall,
+          )
+          state.nextPieces.take(3).forEach { MiniPiece(it) }
+        }
       }
+      GameControls(onAction)
     }
-    NeonButton("Back", onClick = onBack, accent = NeonPink)
+
+    GameOverlay(
+      state = state,
+      onResume = { onAction(GameAction.Resume) },
+      onRestart = { onAction(GameAction.Restart) },
+      onBack = onBack,
+    )
   }
 }
+
+@Composable
+private fun GameHud(state: GameState, onPause: () -> Unit) {
+  Row(
+    modifier = Modifier.fillMaxWidth(),
+    horizontalArrangement = Arrangement.spacedBy(8.dp),
+    verticalAlignment = Alignment.CenterVertically,
+  ) {
+    HudValue("SCORE", state.score.toString(), Modifier.weight(1.5f))
+    HudValue("LEVEL", state.level.toString(), Modifier.weight(1f))
+    HudValue("LINES", state.lines.toString(), Modifier.weight(1f))
+    ControlButton("II", "Pause game", onPause, Modifier.size(52.dp), NeonPink)
+  }
+}
+
+@Composable
+private fun HudValue(label: String, value: String, modifier: Modifier = Modifier) {
+  Column(
+    modifier =
+      modifier
+        .background(Panel.copy(alpha = 0.9f), RoundedCornerShape(14.dp))
+        .border(1.dp, GridLine, RoundedCornerShape(14.dp))
+        .padding(horizontal = 10.dp, vertical = 8.dp),
+  ) {
+    Text(label, color = InkMuted, style = MaterialTheme.typography.labelSmall)
+    AnimatedContent(value, label = "hudValue") { animatedValue ->
+      Text(animatedValue, style = MaterialTheme.typography.titleLarge)
+    }
+  }
+}
+
+@Composable
+private fun SidePreview(label: String, piece: Tetromino?, modifier: Modifier = Modifier) {
+  Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+    Text(label, color = InkMuted, style = MaterialTheme.typography.labelSmall)
+    Spacer(Modifier.height(8.dp))
+    MiniPiece(piece)
+  }
+}
+
+@Composable
+private fun MiniPiece(piece: Tetromino?, modifier: Modifier = Modifier) {
+  Canvas(
+    modifier =
+      modifier
+        .fillMaxWidth()
+        .aspectRatio(1f)
+        .background(Panel.copy(alpha = 0.78f), RoundedCornerShape(12.dp))
+        .border(1.dp, GridLine.copy(alpha = 0.8f), RoundedCornerShape(12.dp))
+        .padding(6.dp),
+  ) {
+    piece ?: return@Canvas
+    val cells = piece.cells(0)
+    val minX = cells.minOf { it.x }
+    val maxX = cells.maxOf { it.x }
+    val minY = cells.minOf { it.y }
+    val maxY = cells.maxOf { it.y }
+    val cell = minOf(size.width / (maxX - minX + 1), size.height / (maxY - minY + 1)) * 0.78f
+    val contentWidth = (maxX - minX + 1) * cell
+    val contentHeight = (maxY - minY + 1) * cell
+    val origin = Offset((size.width - contentWidth) / 2f, (size.height - contentHeight) / 2f)
+    cells.forEach { block ->
+      drawNeonCell(
+        topLeft = origin + Offset((block.x - minX) * cell, (block.y - minY) * cell),
+        cellSize = cell,
+        color = piece.color(),
+      )
+    }
+  }
+}
+
+@Composable
+private fun GameBoard(state: GameState, onAction: (GameAction) -> Unit, modifier: Modifier = Modifier) {
+  val active = state.activePiece
+  val animatedOrigin by animateOffsetAsState(
+    targetValue = Offset(active?.x?.toFloat() ?: 0f, active?.y?.toFloat() ?: 0f),
+    animationSpec = tween(70, easing = FastOutSlowInEasing),
+    label = "piecePosition",
+  )
+  val clearFlash = remember { Animatable(0f) }
+  var dragX by remember { mutableFloatStateOf(0f) }
+  var dragY by remember { mutableFloatStateOf(0f) }
+
+  LaunchedEffect(state.eventId) {
+    if (state.lastClear.isNotEmpty()) {
+      clearFlash.snapTo(1f)
+      clearFlash.animateTo(0f, tween(260))
+    }
+  }
+
+  BoxWithConstraints(
+    modifier =
+      modifier
+        .aspectRatio(0.5f, matchHeightConstraintsFirst = true)
+        .clip(RoundedCornerShape(14.dp))
+        .background(Color(0xFF070C1C))
+        .border(1.dp, GridLine, RoundedCornerShape(14.dp))
+        .semantics { contentDescription = "Tetris playfield" }
+        .pointerInput(state.status) {
+          detectTapGestures(onTap = { onAction(GameAction.RotateClockwise) })
+        }
+        .pointerInput(state.status) {
+          detectDragGestures(
+            onDragStart = {
+              dragX = 0f
+              dragY = 0f
+            },
+            onDragEnd = {
+              if (dragY > 120f) onAction(GameAction.HardDrop)
+              dragX = 0f
+              dragY = 0f
+            },
+          ) { change, amount ->
+            change.consume()
+            dragX += amount.x
+            dragY += amount.y
+            if (dragX > 28f) {
+              onAction(GameAction.MoveRight)
+              dragX = 0f
+            } else if (dragX < -28f) {
+              onAction(GameAction.MoveLeft)
+              dragX = 0f
+            }
+            if (dragY > 34f && dragY < 120f) {
+              onAction(GameAction.SoftDrop)
+              dragY = 0f
+            }
+          }
+        },
+  ) {
+    Canvas(Modifier.fillMaxSize()) {
+      val cellSize = minOf(size.width / BoardWidth, size.height / (BoardHeight - HiddenRows))
+      val boardWidth = cellSize * BoardWidth
+      val boardHeight = cellSize * (BoardHeight - HiddenRows)
+      val origin = Offset((size.width - boardWidth) / 2f, (size.height - boardHeight) / 2f)
+
+      drawBoardGrid(origin, cellSize)
+      state.board.cells.drop(HiddenRows).forEachIndexed { y, row ->
+        row.forEachIndexed { x, type ->
+          if (type != null) drawNeonCell(origin + Offset(x * cellSize, y * cellSize), cellSize, type.color())
+        }
+      }
+
+      state.ghostPiece?.let { ghost ->
+        ghost.blocks.filterVisible().forEach { block ->
+          drawNeonCell(
+            origin + Offset(block.x * cellSize, (block.y - HiddenRows) * cellSize),
+            cellSize,
+            ghost.type.color(),
+            ghost = true,
+          )
+        }
+      }
+
+      active?.let { piece ->
+        val localCells = piece.type.cells(piece.rotation)
+        localCells.forEach { block ->
+          val y = animatedOrigin.y + block.y - HiddenRows
+          if (y >= 0f) {
+            drawNeonCell(
+              origin + Offset((animatedOrigin.x + block.x) * cellSize, y * cellSize),
+              cellSize,
+              piece.type.color(),
+            )
+          }
+        }
+      }
+
+      if (clearFlash.value > 0f) {
+        state.lastClear.forEach { row ->
+          if (row >= HiddenRows) {
+            drawRect(
+              Color.White.copy(alpha = clearFlash.value * 0.8f),
+              topLeft = origin + Offset(0f, (row - HiddenRows) * cellSize),
+              size = Size(boardWidth, cellSize),
+            )
+          }
+        }
+      }
+    }
+  }
+}
+
+private fun DrawScope.drawBoardGrid(origin: Offset, cellSize: Float) {
+  for (x in 0..BoardWidth) {
+    val lineX = origin.x + x * cellSize
+    drawLine(GridLine.copy(alpha = 0.34f), Offset(lineX, origin.y), Offset(lineX, origin.y + cellSize * 20), 1f)
+  }
+  for (y in 0..20) {
+    val lineY = origin.y + y * cellSize
+    drawLine(GridLine.copy(alpha = 0.34f), Offset(origin.x, lineY), Offset(origin.x + cellSize * BoardWidth, lineY), 1f)
+  }
+}
+
+private fun DrawScope.drawNeonCell(
+  topLeft: Offset,
+  cellSize: Float,
+  color: Color,
+  ghost: Boolean = false,
+) {
+  val gap = cellSize * 0.1f
+  val rectSize = Size(cellSize - gap * 2, cellSize - gap * 2)
+  if (ghost) {
+    drawRoundRect(
+      color.copy(alpha = 0.5f),
+      topLeft = topLeft + Offset(gap, gap),
+      size = rectSize,
+      cornerRadius = androidx.compose.ui.geometry.CornerRadius(cellSize * 0.14f),
+      style = Stroke(width = maxOf(1.5f, cellSize * 0.07f)),
+    )
+    return
+  }
+  drawRoundRect(
+    color.copy(alpha = 0.18f),
+    topLeft = topLeft + Offset(gap * 0.2f, gap * 0.2f),
+    size = Size(cellSize - gap * 0.4f, cellSize - gap * 0.4f),
+    cornerRadius = androidx.compose.ui.geometry.CornerRadius(cellSize * 0.2f),
+  )
+  drawRoundRect(
+    brush = Brush.linearGradient(listOf(color.copy(alpha = 0.72f), color)),
+    topLeft = topLeft + Offset(gap, gap),
+    size = rectSize,
+    cornerRadius = androidx.compose.ui.geometry.CornerRadius(cellSize * 0.14f),
+  )
+  drawLine(
+    Color.White.copy(alpha = 0.35f),
+    topLeft + Offset(gap * 1.6f, gap * 1.4f),
+    topLeft + Offset(cellSize - gap * 1.6f, gap * 1.4f),
+    maxOf(1f, cellSize * 0.035f),
+  )
+}
+
+@Composable
+private fun GameControls(onAction: (GameAction) -> Unit) {
+  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      ControlButton("HOLD", "Hold piece", { onAction(GameAction.Hold) }, Modifier.weight(1f))
+      ControlButton("CCW", "Rotate counter-clockwise", { onAction(GameAction.RotateCounterClockwise) }, Modifier.weight(1f), NeonViolet)
+      ControlButton("CW", "Rotate clockwise", { onAction(GameAction.RotateClockwise) }, Modifier.weight(1f), NeonViolet)
+      ControlButton("DROP", "Hard drop", { onAction(GameAction.HardDrop) }, Modifier.weight(1f), NeonPink)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+      ControlButton("LEFT", "Move left", { onAction(GameAction.MoveLeft) }, Modifier.weight(1f))
+      ControlButton("DOWN", "Soft drop", { onAction(GameAction.SoftDrop) }, Modifier.weight(1f), NeonGreen)
+      ControlButton("RIGHT", "Move right", { onAction(GameAction.MoveRight) }, Modifier.weight(1f))
+    }
+  }
+}
+
+@Composable
+private fun ControlButton(
+  label: String,
+  description: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  accent: Color = MaterialTheme.colorScheme.primary,
+) {
+  NeonButton(
+    text = label,
+    onClick = onClick,
+    modifier = modifier.semantics { contentDescription = description },
+    accent = accent,
+  )
+}
+
+@Composable
+private fun GameOverlay(
+  state: GameState,
+  onResume: () -> Unit,
+  onRestart: () -> Unit,
+  onBack: () -> Unit,
+) {
+  val visible = state.status == GameStatus.Paused || state.status == GameStatus.GameOver
+  AnimatedVisibility(
+    visible = visible,
+    enter = fadeIn() + scaleIn(initialScale = 0.94f),
+    exit = fadeOut() + scaleOut(targetScale = 0.96f),
+  ) {
+    Box(
+      Modifier.fillMaxSize().background(Color(0xD9050816)),
+      contentAlignment = Alignment.Center,
+    ) {
+      Column(
+        modifier =
+          Modifier.fillMaxWidth(0.82f)
+            .background(Panel, RoundedCornerShape(28.dp))
+            .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.7f), RoundedCornerShape(28.dp))
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+      ) {
+        Text(
+          if (state.status == GameStatus.GameOver) "GAME OVER" else "PAUSED",
+          style = MaterialTheme.typography.headlineMedium,
+        )
+        if (state.status == GameStatus.GameOver) {
+          Text("Score ${state.score}  /  Lines ${state.lines}", color = InkMuted)
+        }
+        if (state.status == GameStatus.Paused) NeonButton("Resume", onResume)
+        NeonButton("Restart", onRestart, accent = NeonViolet)
+        NeonButton("Home", onBack, accent = NeonPink)
+      }
+    }
+  }
+}
+
+private fun List<CellPosition>.filterVisible(): List<CellPosition> = filter { it.y >= HiddenRows }
+
+private fun Tetromino.color(): Color =
+  when (this) {
+    Tetromino.I -> NeonCyan
+    Tetromino.O -> NeonYellow
+    Tetromino.T -> NeonViolet
+    Tetromino.S -> NeonGreen
+    Tetromino.Z -> NeonPink
+    Tetromino.J -> NeonBlue
+    Tetromino.L -> NeonOrange
+  }
