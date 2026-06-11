@@ -188,7 +188,7 @@ internal fun GameContent(
           ghostEnabled = preferences.ghostEnabled,
           reducedMotion = preferences.reducedMotion,
           onAction = onAction,
-          modifier = Modifier.weight(1f).fillMaxHeight(),
+          modifier = Modifier.weight(1f),
         )
         Column(
           modifier = Modifier.width(58.dp),
@@ -314,7 +314,7 @@ private fun GameBoard(
   BoxWithConstraints(
     modifier =
       modifier
-        .aspectRatio(0.5f, matchHeightConstraintsFirst = true)
+        .aspectRatio(0.5f)
         .clip(RoundedCornerShape(14.dp))
         .background(Color(0xFF070C1C))
         .border(1.dp, GridLine, RoundedCornerShape(14.dp))
