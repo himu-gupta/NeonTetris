@@ -1,7 +1,5 @@
 package com.himugupta.neontetris.ui.game
 
-import android.media.AudioManager
-import android.media.ToneGenerator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -36,12 +34,12 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.material.icons.automirrored.rounded.RotateLeft
+import androidx.compose.material.icons.automirrored.rounded.RotateRight
 import androidx.compose.material.icons.rounded.ArrowDownward
-import androidx.compose.material.icons.rounded.ArrowForward
 import androidx.compose.material.icons.rounded.Pause
-import androidx.compose.material.icons.rounded.RotateLeft
-import androidx.compose.material.icons.rounded.RotateRight
 import androidx.compose.material.icons.rounded.VerticalAlignBottom
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -78,7 +76,9 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.himugupta.neontetris.audio.GameMusicPlayer
+import com.himugupta.neontetris.audio.GameAudio
+import com.himugupta.neontetris.audio.GameSoundEffect
+import com.himugupta.neontetris.audio.SilentGameAudio
 import com.himugupta.neontetris.core.game.BoardHeight
 import com.himugupta.neontetris.core.game.BoardWidth
 import com.himugupta.neontetris.core.game.CellPosition
@@ -108,26 +108,19 @@ fun GameScreen(
   preferencesRepository: PreferencesRepository,
   onBack: () -> Unit,
   modifier: Modifier = Modifier,
+  gameAudio: GameAudio = SilentGameAudio,
   viewModel: GameViewModel = viewModel { GameViewModel(preferencesRepository) },
 ) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val lifecycleOwner = LocalLifecycleOwner.current
   val hapticFeedback = LocalHapticFeedback.current
-  val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 28) }
-  val musicPlayer = remember { GameMusicPlayer() }
-
-  DisposableEffect(toneGenerator, musicPlayer) {
-    onDispose {
-      toneGenerator.release()
-      musicPlayer.release()
-    }
-  }
+  DisposableEffect(gameAudio) { onDispose { gameAudio.setMusicPlaying(false) } }
 
   LaunchedEffect(preferences.soundEnabled, state.status) {
     if (preferences.soundEnabled && state.status == GameStatus.Playing) {
-      musicPlayer.play()
+      gameAudio.setMusicPlaying(true)
     } else {
-      musicPlayer.pause()
+      gameAudio.setMusicPlaying(false)
     }
   }
 
@@ -143,10 +136,10 @@ fun GameScreen(
     }
     if (preferences.soundEnabled && state.status == GameStatus.Playing) {
       when (action) {
-        GameAction.HardDrop -> toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 55)
+        GameAction.HardDrop -> gameAudio.playEffect(GameSoundEffect.HardDrop)
         GameAction.RotateClockwise,
-        GameAction.RotateCounterClockwise,
-        GameAction.Hold -> toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 25)
+        GameAction.RotateCounterClockwise -> gameAudio.playEffect(GameSoundEffect.Rotate)
+        GameAction.Hold -> gameAudio.playEffect(GameSoundEffect.Hold)
         else -> Unit
       }
     }
@@ -158,7 +151,7 @@ fun GameScreen(
       hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
     }
     if (preferences.soundEnabled && state.lastClear.isNotEmpty()) {
-      toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 110)
+      gameAudio.playEffect(GameSoundEffect.LineClear)
     }
   }
 
@@ -512,7 +505,7 @@ private fun GameControls(canHold: Boolean, onAction: (GameAction) -> Unit) {
         enabled = canHold,
       )
       IconControlButton(
-        icon = Icons.Rounded.RotateLeft,
+        icon = Icons.AutoMirrored.Rounded.RotateLeft,
         description = "Rotate counter-clockwise",
         onClick = { onAction(GameAction.RotateCounterClockwise) },
         modifier = Modifier.weight(0.72f),
@@ -520,7 +513,7 @@ private fun GameControls(canHold: Boolean, onAction: (GameAction) -> Unit) {
         height = 54.dp,
       )
       IconControlButton(
-        icon = Icons.Rounded.RotateRight,
+        icon = Icons.AutoMirrored.Rounded.RotateRight,
         description = "Rotate clockwise",
         onClick = { onAction(GameAction.RotateClockwise) },
         modifier = Modifier.weight(0.72f),
@@ -539,7 +532,7 @@ private fun GameControls(canHold: Boolean, onAction: (GameAction) -> Unit) {
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       IconControlButton(
-        icon = Icons.Rounded.ArrowBack,
+        icon = Icons.AutoMirrored.Rounded.ArrowBack,
         description = "Move left",
         onClick = { onAction(GameAction.MoveLeft) },
         modifier = Modifier.weight(1f),
@@ -554,7 +547,7 @@ private fun GameControls(canHold: Boolean, onAction: (GameAction) -> Unit) {
         height = 66.dp,
       )
       IconControlButton(
-        icon = Icons.Rounded.ArrowForward,
+        icon = Icons.AutoMirrored.Rounded.ArrowForward,
         description = "Move right",
         onClick = { onAction(GameAction.MoveRight) },
         modifier = Modifier.weight(1f),

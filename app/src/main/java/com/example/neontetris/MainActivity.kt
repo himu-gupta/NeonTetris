@@ -5,30 +5,29 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.ui.Modifier
-import com.himugupta.neontetris.theme.NeonTetrisTheme
+import com.himugupta.neontetris.audio.AndroidGameAudio
+import com.himugupta.neontetris.data.AndroidPreferencesStorage
+import com.himugupta.neontetris.data.PreferencesRepository
 
 class MainActivity : ComponentActivity() {
+  private lateinit var gameAudio: AndroidGameAudio
+
   override fun onCreate(savedInstanceState: Bundle?) {
     super.onCreate(savedInstanceState)
+
+    val preferencesRepository = PreferencesRepository(AndroidPreferencesStorage(applicationContext))
+    gameAudio = AndroidGameAudio()
 
     enableEdgeToEdge(
       statusBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
       navigationBarStyle = SystemBarStyle.dark(android.graphics.Color.TRANSPARENT),
     )
     window.isNavigationBarContrastEnforced = false
-    setContent {
-      NeonTetrisTheme {
-        Surface(
-          modifier = Modifier.fillMaxSize(),
-          color = MaterialTheme.colorScheme.background,
-        ) {
-          MainNavigation()
-        }
-      }
-    }
+    setContent { NeonTetrisApp(preferencesRepository = preferencesRepository, gameAudio = gameAudio) }
+  }
+
+  override fun onDestroy() {
+    gameAudio.release()
+    super.onDestroy()
   }
 }

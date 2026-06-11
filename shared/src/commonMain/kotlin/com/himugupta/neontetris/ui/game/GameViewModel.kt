@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlin.time.TimeSource
 
 class GameViewModel(
   private val preferencesRepository: PreferencesRepository,
@@ -22,12 +23,11 @@ class GameViewModel(
 
   init {
     viewModelScope.launch {
-      var previousFrame = System.nanoTime()
+      var previousFrame = TimeSource.Monotonic.markNow()
       while (isActive) {
         delay(FrameDelayMs)
-        val now = System.nanoTime()
-        val deltaMs = (now - previousFrame) / 1_000_000L
-        previousFrame = now
+        val deltaMs = previousFrame.elapsedNow().inWholeMilliseconds
+        previousFrame = TimeSource.Monotonic.markNow()
         publish(engine.tick(deltaMs))
       }
     }

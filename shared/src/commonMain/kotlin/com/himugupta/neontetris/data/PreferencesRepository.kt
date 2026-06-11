@@ -1,6 +1,5 @@
 package com.himugupta.neontetris.data
 
-import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,8 +12,17 @@ data class PlayerPreferences(
   val reducedMotion: Boolean = false,
 )
 
-class PreferencesRepository(context: Context) {
-  private val storage = context.getSharedPreferences(StorageName, Context.MODE_PRIVATE)
+interface PreferencesStorage {
+  fun getInt(key: String, defaultValue: Int): Int
+
+  fun getBoolean(key: String, defaultValue: Boolean): Boolean
+
+  fun putInt(key: String, value: Int)
+
+  fun putBoolean(key: String, value: Boolean)
+}
+
+class PreferencesRepository(private val storage: PreferencesStorage) {
   private val _preferences = MutableStateFlow(readPreferences())
   val preferences: StateFlow<PlayerPreferences> = _preferences.asStateFlow()
 
@@ -28,7 +36,7 @@ class PreferencesRepository(context: Context) {
 
   fun updateHighScore(score: Int) {
     if (score <= _preferences.value.highScore) return
-    storage.edit().putInt(KeyHighScore, score).apply()
+    storage.putInt(KeyHighScore, score)
     _preferences.value = _preferences.value.copy(highScore = score)
   }
 
@@ -37,7 +45,7 @@ class PreferencesRepository(context: Context) {
     value: Boolean,
     transform: PlayerPreferences.() -> PlayerPreferences,
   ) {
-    storage.edit().putBoolean(key, value).apply()
+    storage.putBoolean(key, value)
     _preferences.value = _preferences.value.transform()
   }
 
@@ -51,7 +59,6 @@ class PreferencesRepository(context: Context) {
     )
 
   private companion object {
-    const val StorageName = "neon_tetris_preferences"
     const val KeyHighScore = "high_score"
     const val KeyGhost = "ghost_enabled"
     const val KeyHaptics = "haptics_enabled"
