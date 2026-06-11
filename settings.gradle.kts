@@ -31,3 +31,4 @@ plugins {
 
 rootProject.name = "Neon Tetris"
 include(":app")
+include(":shared")
