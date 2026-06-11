@@ -13,7 +13,7 @@ Neon Tetris is a polished falling-block puzzle game for Android, built with Kotl
 - Remain playable with reduced motion, haptics disabled, or sound disabled.
 - Keep gameplay deterministic and independently testable.
 
-## Planned gameplay
+## Gameplay
 
 - Standard 10 x 20 visible playfield with hidden spawn rows.
 - Seven tetrominoes generated through a deterministic 7-bag randomizer.
@@ -86,7 +86,33 @@ Each checkpoint is committed and pushed independently so the repository history 
 
 ## Screenshots
 
-Emulator captures will be added here after the verified gameplay build is complete.
+<table>
+  <tr>
+    <th>Home</th>
+    <th>Gameplay</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/home.png" width="280" alt="Neon Tetris home screen"></td>
+    <td><img src="docs/screenshots/gameplay.png" width="280" alt="Neon Tetris gameplay screen"></td>
+  </tr>
+  <tr>
+    <th>Pause</th>
+    <th>Settings</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/paused.png" width="280" alt="Neon Tetris pause overlay"></td>
+    <td><img src="docs/screenshots/settings.png" width="280" alt="Neon Tetris settings screen"></td>
+  </tr>
+</table>
+
+Captured from the `Resizable_Experimental` Android emulator at 1080 x 2400 after visual and accessibility-hierarchy review.
+
+## Verification
+
+- Debug APK builds successfully with Android Gradle Plugin 9.0.1.
+- Six deterministic game-engine unit tests pass.
+- Two production-activity Compose journeys pass on the emulator.
+- Home, gameplay, pause, and settings states were visually inspected after capture.
 
 ## Build
 
