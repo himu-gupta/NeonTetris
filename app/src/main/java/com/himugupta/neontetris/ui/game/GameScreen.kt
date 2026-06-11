@@ -228,7 +228,7 @@ internal fun GameContent(
           state.nextPieces.take(3).forEach { MiniPiece(it) }
         }
       }
-      GameControls(onAction)
+      GameControls(canHold = state.canHold, onAction = onAction)
     }
 
     GameOverlay(
@@ -278,10 +278,18 @@ private fun HudValue(label: String, value: String, modifier: Modifier = Modifier
 
 @Composable
 private fun SidePreview(label: String, piece: Tetromino?, modifier: Modifier = Modifier) {
-  Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+  Column(
+    modifier =
+      modifier.semantics {
+        contentDescription = if (piece == null) "$label slot empty" else "$label slot: ${piece.name}"
+      },
+    horizontalAlignment = Alignment.CenterHorizontally,
+  ) {
     Text(label, color = InkMuted, style = MaterialTheme.typography.labelSmall)
     Spacer(Modifier.height(8.dp))
-    MiniPiece(piece)
+    AnimatedContent(piece, label = "sidePreviewPiece") { animatedPiece ->
+      MiniPiece(animatedPiece)
+    }
   }
 }
 
@@ -484,7 +492,7 @@ private fun DrawScope.drawNeonCell(
 }
 
 @Composable
-private fun GameControls(onAction: (GameAction) -> Unit) {
+private fun GameControls(canHold: Boolean, onAction: (GameAction) -> Unit) {
   Column(
     modifier =
       Modifier.fillMaxWidth()
@@ -495,12 +503,13 @@ private fun GameControls(onAction: (GameAction) -> Unit) {
   ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
       TextControlButton(
-        label = "HOLD",
-        description = "Hold piece",
+        label = if (canHold) "HOLD" else "USED",
+        description = if (canHold) "Hold piece" else "Hold used; available after piece locks",
         onClick = { onAction(GameAction.Hold) },
         modifier = Modifier.weight(0.9f),
         accent = NeonBlue,
         height = 54.dp,
+        enabled = canHold,
       )
       IconControlButton(
         icon = Icons.Rounded.RotateLeft,
@@ -563,12 +572,20 @@ private fun TextControlButton(
   modifier: Modifier = Modifier,
   accent: Color = MaterialTheme.colorScheme.primary,
   height: androidx.compose.ui.unit.Dp = 58.dp,
+  enabled: Boolean = true,
 ) {
   Button(
     onClick = onClick,
+    enabled = enabled,
     modifier = modifier.height(height).semantics { contentDescription = description },
     shape = RoundedCornerShape(18.dp),
-    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = MaterialTheme.colorScheme.onPrimary),
+    colors =
+      ButtonDefaults.buttonColors(
+        containerColor = accent,
+        contentColor = MaterialTheme.colorScheme.onPrimary,
+        disabledContainerColor = accent.copy(alpha = 0.24f),
+        disabledContentColor = InkMuted,
+      ),
     border = BorderStroke(1.dp, accent.copy(alpha = 0.86f)),
   ) {
     Text(label, style = MaterialTheme.typography.labelLarge)
