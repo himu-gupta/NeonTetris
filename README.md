@@ -1,6 +1,6 @@
 # Neon Tetris
 
-Neon Tetris is a polished falling-block puzzle game for Android, built with Kotlin and Jetpack Compose. It combines guideline-inspired gameplay, responsive touch controls, a neon arcade visual system, and purposeful motion without coupling the game rules to the UI.
+Neon Tetris is a polished Kotlin Multiplatform falling-block puzzle game for Android, desktop, and iOS. Its game engine, state management, Compose Multiplatform UI, procedural soundtrack, and preferences contract are shared while each target keeps a thin native host.
 
 > This is an independent educational project and is not affiliated with or endorsed by The Tetris Company.
 
@@ -47,26 +47,42 @@ Neon Tetris is a polished falling-block puzzle game for Android, built with Kotl
 | Hold | Hold button near the playfield |
 | Pause | Pause button in the game HUD |
 
+## Targets
+
+- **Android:** production APK with native `SharedPreferences`, `AudioTrack`, effects, haptics, and lifecycle integration.
+- **Desktop:** runnable Compose desktop application with persistent preferences, native Java Sound audio, and a macOS DMG distribution.
+- **iOS:** shared framework target with a Compose `MainViewController`, `NSUserDefaults`, AVAudioEngine music, and native effects. Full framework linking requires Xcode.
+
 ## Architecture
 
-The app follows a single-activity, unidirectional state-flow architecture.
+The app follows a unidirectional state-flow architecture with platform services injected at the host boundary.
 
 ```text
 app/
-  core/game/        Pure Kotlin board, pieces, rotation, scoring, timing, and reducer logic
-  data/             Settings and high-score persistence
-  ui/home/          Start screen and first-run guidance
-  ui/game/          Game route, ViewModel, board renderer, HUD, controls, and overlays
-  ui/settings/      Motion, sound, haptic, and ghost-piece preferences
-  ui/components/    Shared arcade controls and surfaces
-  theme/            Color, typography, shape, spacing, and motion tokens
+  Android activity, preferences, and audio implementations
+
+shared/src/commonMain/
+  core/game/        Pure Kotlin rules, board, pieces, scoring, timing, and reducer logic
+  data/             Shared preferences state and storage contract
+  audio/            Shared soundtrack synthesis and audio contract
+  ui/               Compose Multiplatform screens, controls, renderer, and ViewModel
+  theme/            Shared color and typography system
+
+shared/src/androidMain/
+  Android system-back integration
+
+shared/src/desktopMain/
+  Desktop window, preferences, and audio implementation
+
+shared/src/iosMain/
+  Compose UIViewController, NSUserDefaults, AVAudioEngine, and native effects
 ```
 
 The engine receives explicit actions and time steps and returns immutable state. Compose renders that state, while the ViewModel owns the frame loop, lifecycle behavior, persistence coordination, and one-shot feedback events.
 
 ## Quality strategy
 
-- **Engine unit tests:** collision, spawn, movement, rotation kicks, line clearing, bag generation, hold rules, scoring, combos, levels, lock delay, and game over.
+- **Common engine tests:** collision, spawn, movement, line clearing, bag generation, hold rules, and pause behavior on Android host and desktop targets.
 - **ViewModel tests:** frame progression, pause/resume, settings application, restart, and persisted score updates.
 - **Compose tests:** home-to-game flow, controls, pause overlay, settings, and game-over actions.
 - **Device verification:** build and install the debug APK, inspect the UI hierarchy, exercise a gameplay journey, rotate/resize where relevant, and visually review captured screenshots.
@@ -110,15 +126,27 @@ Captured from the `Resizable_Experimental` Android emulator at 1080 x 2400 after
 
 ## Verification
 
-- Debug APK builds successfully with Android Gradle Plugin 9.0.1.
-- Six deterministic game-engine unit tests pass.
-- Two production-activity Compose journeys pass on the emulator.
-- Home, gameplay, pause, and settings states were visually inspected after capture.
+- Android debug APK and instrumented-test APK build successfully with Android Gradle Plugin 9.0.1.
+- Six deterministic shared engine tests pass on Android host and desktop targets.
+- Three production-activity Compose journeys pass on `Resizable_Experimental`.
+- Shared UI and platform code compile for iOS x64, arm64, and simulator arm64 targets.
+- Desktop application launches and packages as `shared/build/compose/binaries/main/dmg/Neon Tetris-1.0.0.dmg`.
+- iOS framework linking is not available on this machine because full Xcode is not installed.
+- The Android home screen was visually rechecked at 1080 x 2400 after migration.
 
 ## Build
 
 ```bash
 ./gradlew :app:assembleDebug
+./gradlew :shared:desktopTest :shared:testAndroidHostTest
+./gradlew :shared:run
+./gradlew :shared:compileKotlinIosSimulatorArm64
 ```
 
-The project targets Android 16 (API 36), supports Android 8.0+ (API 26), and uses Java 17.
+Create the macOS DMG with a full JDK 17 that includes `jpackage`:
+
+```bash
+./gradlew :shared:packageDistributionForCurrentOS
+```
+
+The Android target uses API 36, supports Android 8.0+ (API 26), and all JVM targets use Java 17.
