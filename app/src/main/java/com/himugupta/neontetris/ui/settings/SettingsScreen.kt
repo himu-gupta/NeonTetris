@@ -13,27 +13,25 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.unit.dp
 import com.himugupta.neontetris.theme.DeepSpace
 import com.himugupta.neontetris.theme.InkMuted
 import com.himugupta.neontetris.theme.NeonViolet
+import com.himugupta.neontetris.data.PlayerPreferences
+import com.himugupta.neontetris.data.PreferencesRepository
 import com.himugupta.neontetris.ui.components.NeonButton
 import com.himugupta.neontetris.ui.components.NeonPanel
 import com.himugupta.neontetris.ui.components.SettingsRow
 
 @Composable
-fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
-  var ghost by rememberSaveable { mutableStateOf(true) }
-  var haptics by rememberSaveable { mutableStateOf(true) }
-  var sound by rememberSaveable { mutableStateOf(true) }
-  var reducedMotion by rememberSaveable { mutableStateOf(false) }
-
+fun SettingsScreen(
+  preferences: PlayerPreferences,
+  repository: PreferencesRepository,
+  onBack: () -> Unit,
+  modifier: Modifier = Modifier,
+) {
   Column(
     modifier =
       modifier
@@ -47,10 +45,18 @@ fun SettingsScreen(onBack: () -> Unit, modifier: Modifier = Modifier) {
     Text("Tune feedback without changing the rules.", color = InkMuted)
     NeonPanel(Modifier.fillMaxWidth()) {
       Column {
-        SettingsRow("Ghost piece", "Show the projected landing position.") { Switch(ghost, { ghost = it }) }
-        SettingsRow("Haptics", "Feel rotations, drops, and clears.") { Switch(haptics, { haptics = it }) }
-        SettingsRow("Sound", "Enable arcade sound feedback.") { Switch(sound, { sound = it }) }
-        SettingsRow("Reduced motion", "Replace spatial effects with fades.") { Switch(reducedMotion, { reducedMotion = it }) }
+        SettingsRow("Ghost piece", "Show the projected landing position.") {
+          Switch(preferences.ghostEnabled, repository::setGhostEnabled)
+        }
+        SettingsRow("Haptics", "Feel rotations, drops, and clears.") {
+          Switch(preferences.hapticsEnabled, repository::setHapticsEnabled)
+        }
+        SettingsRow("Sound", "Keep arcade audio ready for play.") {
+          Switch(preferences.soundEnabled, repository::setSoundEnabled)
+        }
+        SettingsRow("Reduced motion", "Replace spatial effects with instant feedback.") {
+          Switch(preferences.reducedMotion, repository::setReducedMotion)
+        }
       }
     }
     Spacer(Modifier.weight(1f))

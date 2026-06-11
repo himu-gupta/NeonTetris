@@ -1,5 +1,7 @@
 package com.himugupta.neontetris.ui.game
 
+import android.media.AudioManager
+import android.media.ToneGenerator
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
@@ -53,6 +55,8 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextAlign
@@ -71,6 +75,8 @@ import com.himugupta.neontetris.core.game.GameState
 import com.himugupta.neontetris.core.game.GameStatus
 import com.himugupta.neontetris.core.game.HiddenRows
 import com.himugupta.neontetris.core.game.Tetromino
+import com.himugupta.neontetris.data.PlayerPreferences
+import com.himugupta.neontetris.data.PreferencesRepository
 import com.himugupta.neontetris.theme.DeepSpace
 import com.himugupta.neontetris.theme.GridLine
 import com.himugupta.neontetris.theme.InkMuted
@@ -86,12 +92,51 @@ import com.himugupta.neontetris.ui.components.NeonButton
 
 @Composable
 fun GameScreen(
+  preferences: PlayerPreferences,
+  preferencesRepository: PreferencesRepository,
   onBack: () -> Unit,
   modifier: Modifier = Modifier,
-  viewModel: GameViewModel = viewModel { GameViewModel() },
+  viewModel: GameViewModel = viewModel { GameViewModel(preferencesRepository) },
 ) {
   val state by viewModel.state.collectAsStateWithLifecycle()
   val lifecycleOwner = LocalLifecycleOwner.current
+  val hapticFeedback = LocalHapticFeedback.current
+  val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 28) }
+
+  DisposableEffect(toneGenerator) {
+    onDispose { toneGenerator.release() }
+  }
+
+  val dispatchWithFeedback: (GameAction) -> Unit = { action ->
+    if (preferences.hapticsEnabled && state.status == GameStatus.Playing) {
+      when (action) {
+        GameAction.HardDrop -> hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+        GameAction.RotateClockwise,
+        GameAction.RotateCounterClockwise,
+        GameAction.Hold -> hapticFeedback.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+        else -> Unit
+      }
+    }
+    if (preferences.soundEnabled && state.status == GameStatus.Playing) {
+      when (action) {
+        GameAction.HardDrop -> toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 55)
+        GameAction.RotateClockwise,
+        GameAction.RotateCounterClockwise,
+        GameAction.Hold -> toneGenerator.startTone(ToneGenerator.TONE_PROP_BEEP, 25)
+        else -> Unit
+      }
+    }
+    viewModel.dispatch(action)
+  }
+
+  LaunchedEffect(state.eventId) {
+    if (preferences.hapticsEnabled && state.lastClear.isNotEmpty()) {
+      hapticFeedback.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
+    if (preferences.soundEnabled && state.lastClear.isNotEmpty()) {
+      toneGenerator.startTone(ToneGenerator.TONE_PROP_ACK, 110)
+    }
+  }
 
   DisposableEffect(lifecycleOwner) {
     val observer = LifecycleEventObserver { _, event ->
@@ -103,7 +148,8 @@ fun GameScreen(
 
   GameContent(
     state = state,
-    onAction = viewModel::dispatch,
+    preferences = preferences,
+    onAction = dispatchWithFeedback,
     onBack = onBack,
     modifier = modifier,
   )
@@ -112,6 +158,7 @@ fun GameScreen(
 @Composable
 internal fun GameContent(
   state: GameState,
+  preferences: PlayerPreferences,
   onAction: (GameAction) -> Unit,
   onBack: () -> Unit,
   modifier: Modifier = Modifier,
@@ -138,6 +185,8 @@ internal fun GameContent(
         SidePreview(label = "HOLD", piece = state.holdPiece, modifier = Modifier.width(58.dp))
         GameBoard(
           state = state,
+          ghostEnabled = preferences.ghostEnabled,
+          reducedMotion = preferences.reducedMotion,
           onAction = onAction,
           modifier = Modifier.weight(1f).fillMaxHeight(),
         )
@@ -238,11 +287,17 @@ private fun MiniPiece(piece: Tetromino?, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun GameBoard(state: GameState, onAction: (GameAction) -> Unit, modifier: Modifier = Modifier) {
+private fun GameBoard(
+  state: GameState,
+  ghostEnabled: Boolean,
+  reducedMotion: Boolean,
+  onAction: (GameAction) -> Unit,
+  modifier: Modifier = Modifier,
+) {
   val active = state.activePiece
   val animatedOrigin by animateOffsetAsState(
     targetValue = Offset(active?.x?.toFloat() ?: 0f, active?.y?.toFloat() ?: 0f),
-    animationSpec = tween(70, easing = FastOutSlowInEasing),
+    animationSpec = tween(if (reducedMotion) 0 else 70, easing = FastOutSlowInEasing),
     label = "piecePosition",
   )
   val clearFlash = remember { Animatable(0f) }
@@ -252,7 +307,7 @@ private fun GameBoard(state: GameState, onAction: (GameAction) -> Unit, modifier
   LaunchedEffect(state.eventId) {
     if (state.lastClear.isNotEmpty()) {
       clearFlash.snapTo(1f)
-      clearFlash.animateTo(0f, tween(260))
+      clearFlash.animateTo(0f, tween(if (reducedMotion) 0 else 260))
     }
   }
 
@@ -309,7 +364,7 @@ private fun GameBoard(state: GameState, onAction: (GameAction) -> Unit, modifier
         }
       }
 
-      state.ghostPiece?.let { ghost ->
+      if (ghostEnabled) state.ghostPiece?.let { ghost ->
         ghost.blocks.filterVisible().forEach { block ->
           drawNeonCell(
             origin + Offset(block.x * cellSize, (block.y - HiddenRows) * cellSize),

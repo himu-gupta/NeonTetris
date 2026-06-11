@@ -43,17 +43,20 @@ import com.himugupta.neontetris.ui.components.TetrominoMark
 
 @Composable
 fun HomeScreen(
+  highScore: Int,
+  reducedMotion: Boolean,
   onPlay: () -> Unit,
   onSettings: () -> Unit,
   modifier: Modifier = Modifier,
 ) {
   val transition = rememberInfiniteTransition(label = "homeAmbient")
-  val pulse by transition.animateFloat(
-    initialValue = 0.94f,
-    targetValue = 1.04f,
+  val animatedPulse by transition.animateFloat(
+    initialValue = if (reducedMotion) 1f else 0.94f,
+    targetValue = if (reducedMotion) 1f else 1.04f,
     animationSpec = infiniteRepeatable(tween(1800), RepeatMode.Reverse),
     label = "logoPulse",
   )
+  val pulse = if (reducedMotion) 1f else animatedPulse
 
   Box(
     modifier =
@@ -67,7 +70,7 @@ fun HomeScreen(
       horizontalAlignment = Alignment.CenterHorizontally,
     ) {
       Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-        Text("BEST  0", color = InkMuted, style = MaterialTheme.typography.labelLarge)
+        Text("BEST  $highScore", color = InkMuted, style = MaterialTheme.typography.labelLarge)
       }
       Spacer(Modifier.weight(0.8f))
       TetrominoMark(Modifier.size(82.dp).scale(pulse))
@@ -129,5 +132,5 @@ private fun ArcadeGrid(modifier: Modifier = Modifier) {
 @Preview(showBackground = true, widthDp = 393, heightDp = 852)
 @Composable
 private fun HomePreview() {
-  NeonTetrisTheme { HomeScreen(onPlay = {}, onSettings = {}) }
+  NeonTetrisTheme { HomeScreen(highScore = 12400, reducedMotion = false, onPlay = {}, onSettings = {}) }
 }
