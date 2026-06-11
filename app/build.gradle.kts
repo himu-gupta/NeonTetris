@@ -5,10 +5,10 @@ plugins {
 }
 
 android {
-    namespace = "com.example.neontetris"
+    namespace = "com.himugupta.neontetris"
     compileSdk = 36
     defaultConfig {
-        applicationId = "com.example.neontetris"
+        applicationId = "com.himugupta.neontetris"
         minSdk = 26
         targetSdk = 36
         versionCode = 1

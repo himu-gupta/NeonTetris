@@ -1,26 +1,33 @@
-package com.example.neontetris
+package com.himugupta.neontetris
 
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.unit.dp
 import androidx.navigation3.runtime.entryProvider
 import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
-import com.example.neontetris.ui.main.MainScreen
+import com.himugupta.neontetris.ui.game.GameScreen
+import com.himugupta.neontetris.ui.home.HomeScreen
+import com.himugupta.neontetris.ui.settings.SettingsScreen
 
 @Composable
 fun MainNavigation() {
-  val backStack = rememberNavBackStack(Main)
+  val backStack = rememberNavBackStack(HomeRoute)
 
   NavDisplay(
     backStack = backStack,
     onBack = { backStack.removeLastOrNull() },
     entryProvider =
       entryProvider {
-        entry<Main> {
-          MainScreen(onItemClick = { navKey -> backStack.add(navKey) }, modifier = Modifier.safeDrawingPadding().padding(16.dp))
+        entry<HomeRoute> {
+          HomeScreen(
+            onPlay = { backStack.add(GameRoute) },
+            onSettings = { backStack.add(SettingsRoute) },
+          )
+        }
+        entry<GameRoute> {
+          GameScreen(onBack = { backStack.removeLastOrNull() })
+        }
+        entry<SettingsRoute> {
+          SettingsScreen(onBack = { backStack.removeLastOrNull() })
         }
       },
   )
