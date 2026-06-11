@@ -33,16 +33,17 @@ Neon Tetris is a polished falling-block puzzle game for Android, built with Kotl
 - Ghost-piece fade, landing pulse, line-clear flash and collapse, score popups, combo treatment, and level-up transition.
 - Animated home, pause, and game-over surfaces with consistent button press states.
 - Optional haptic feedback for rotate, hard drop, line clear, and game over.
+- Looping procedural neon chiptune with lightweight game effects.
 - Reduced-motion mode that replaces spatial effects with opacity and color feedback.
 
 ## Controls
 
 | Action | Touch control |
 | --- | --- |
-| Move | Left and right buttons or horizontal swipe |
-| Soft drop | Down button or downward drag |
-| Hard drop | Dedicated drop button or quick downward fling |
-| Rotate | Clockwise and counter-clockwise buttons or tap gesture |
+| Move | Large left and right arrow buttons or horizontal swipe |
+| Soft drop | Large down-arrow button or downward drag |
+| Hard drop | Pink drop action or quick downward fling |
+| Rotate | Rotate-left and rotate-right icon buttons or tap gesture |
 | Hold | Hold button near the playfield |
 | Pause | Pause button in the game HUD |
 

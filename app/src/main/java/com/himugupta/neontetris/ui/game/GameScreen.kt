@@ -14,6 +14,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.gestures.detectDragGestures
@@ -34,6 +35,17 @@ import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDownward
+import androidx.compose.material.icons.rounded.ArrowForward
+import androidx.compose.material.icons.rounded.Pause
+import androidx.compose.material.icons.rounded.RotateLeft
+import androidx.compose.material.icons.rounded.RotateRight
+import androidx.compose.material.icons.rounded.VerticalAlignBottom
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,7 +65,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.translate
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -66,10 +78,10 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.himugupta.neontetris.audio.GameMusicPlayer
 import com.himugupta.neontetris.core.game.BoardHeight
 import com.himugupta.neontetris.core.game.BoardWidth
 import com.himugupta.neontetris.core.game.CellPosition
-import com.himugupta.neontetris.core.game.FallingPiece
 import com.himugupta.neontetris.core.game.GameAction
 import com.himugupta.neontetris.core.game.GameState
 import com.himugupta.neontetris.core.game.GameStatus
@@ -102,9 +114,21 @@ fun GameScreen(
   val lifecycleOwner = LocalLifecycleOwner.current
   val hapticFeedback = LocalHapticFeedback.current
   val toneGenerator = remember { ToneGenerator(AudioManager.STREAM_MUSIC, 28) }
+  val musicPlayer = remember { GameMusicPlayer() }
 
-  DisposableEffect(toneGenerator) {
-    onDispose { toneGenerator.release() }
+  DisposableEffect(toneGenerator, musicPlayer) {
+    onDispose {
+      toneGenerator.release()
+      musicPlayer.release()
+    }
+  }
+
+  LaunchedEffect(preferences.soundEnabled, state.status) {
+    if (preferences.soundEnabled && state.status == GameStatus.Playing) {
+      musicPlayer.play()
+    } else {
+      musicPlayer.pause()
+    }
   }
 
   val dispatchWithFeedback: (GameAction) -> Unit = { action ->
@@ -226,7 +250,13 @@ private fun GameHud(state: GameState, onPause: () -> Unit) {
     HudValue("SCORE", state.score.toString(), Modifier.weight(1.5f))
     HudValue("LEVEL", state.level.toString(), Modifier.weight(1f))
     HudValue("LINES", state.lines.toString(), Modifier.weight(1f))
-    ControlButton("II", "Pause game", onPause, Modifier.size(52.dp), NeonPink)
+    IconControlButton(
+      icon = Icons.Rounded.Pause,
+      description = "Pause game",
+      onClick = onPause,
+      modifier = Modifier.size(52.dp),
+      accent = NeonPink,
+    )
   }
 }
 
@@ -455,35 +485,122 @@ private fun DrawScope.drawNeonCell(
 
 @Composable
 private fun GameControls(onAction: (GameAction) -> Unit) {
-  Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+  Column(
+    modifier =
+      Modifier.fillMaxWidth()
+        .background(Panel.copy(alpha = 0.82f), RoundedCornerShape(24.dp))
+        .border(1.dp, GridLine, RoundedCornerShape(24.dp))
+        .padding(8.dp),
+    verticalArrangement = Arrangement.spacedBy(8.dp),
+  ) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      ControlButton("HOLD", "Hold piece", { onAction(GameAction.Hold) }, Modifier.weight(1f))
-      ControlButton("CCW", "Rotate counter-clockwise", { onAction(GameAction.RotateCounterClockwise) }, Modifier.weight(1f), NeonViolet)
-      ControlButton("CW", "Rotate clockwise", { onAction(GameAction.RotateClockwise) }, Modifier.weight(1f), NeonViolet)
-      ControlButton("DROP", "Hard drop", { onAction(GameAction.HardDrop) }, Modifier.weight(1f), NeonPink)
+      TextControlButton(
+        label = "HOLD",
+        description = "Hold piece",
+        onClick = { onAction(GameAction.Hold) },
+        modifier = Modifier.weight(0.9f),
+        accent = NeonBlue,
+        height = 54.dp,
+      )
+      IconControlButton(
+        icon = Icons.Rounded.RotateLeft,
+        description = "Rotate counter-clockwise",
+        onClick = { onAction(GameAction.RotateCounterClockwise) },
+        modifier = Modifier.weight(0.72f),
+        accent = NeonViolet,
+        height = 54.dp,
+      )
+      IconControlButton(
+        icon = Icons.Rounded.RotateRight,
+        description = "Rotate clockwise",
+        onClick = { onAction(GameAction.RotateClockwise) },
+        modifier = Modifier.weight(0.72f),
+        accent = NeonViolet,
+        height = 54.dp,
+      )
+      IconControlButton(
+        icon = Icons.Rounded.VerticalAlignBottom,
+        label = "DROP",
+        description = "Hard drop",
+        onClick = { onAction(GameAction.HardDrop) },
+        modifier = Modifier.weight(1.2f),
+        accent = NeonPink,
+        height = 54.dp,
+      )
     }
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-      ControlButton("LEFT", "Move left", { onAction(GameAction.MoveLeft) }, Modifier.weight(1f))
-      ControlButton("DOWN", "Soft drop", { onAction(GameAction.SoftDrop) }, Modifier.weight(1f), NeonGreen)
-      ControlButton("RIGHT", "Move right", { onAction(GameAction.MoveRight) }, Modifier.weight(1f))
+      IconControlButton(
+        icon = Icons.Rounded.ArrowBack,
+        description = "Move left",
+        onClick = { onAction(GameAction.MoveLeft) },
+        modifier = Modifier.weight(1f),
+        height = 66.dp,
+      )
+      IconControlButton(
+        icon = Icons.Rounded.ArrowDownward,
+        description = "Soft drop",
+        onClick = { onAction(GameAction.SoftDrop) },
+        modifier = Modifier.weight(1.25f),
+        accent = NeonGreen,
+        height = 66.dp,
+      )
+      IconControlButton(
+        icon = Icons.Rounded.ArrowForward,
+        description = "Move right",
+        onClick = { onAction(GameAction.MoveRight) },
+        modifier = Modifier.weight(1f),
+        height = 66.dp,
+      )
     }
   }
 }
 
 @Composable
-private fun ControlButton(
+private fun TextControlButton(
   label: String,
   description: String,
   onClick: () -> Unit,
   modifier: Modifier = Modifier,
   accent: Color = MaterialTheme.colorScheme.primary,
+  height: androidx.compose.ui.unit.Dp = 58.dp,
 ) {
-  NeonButton(
-    text = label,
+  Button(
     onClick = onClick,
-    modifier = modifier.semantics { contentDescription = description },
-    accent = accent,
-  )
+    modifier = modifier.height(height).semantics { contentDescription = description },
+    shape = RoundedCornerShape(18.dp),
+    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = MaterialTheme.colorScheme.onPrimary),
+    border = BorderStroke(1.dp, accent.copy(alpha = 0.86f)),
+  ) {
+    Text(label, style = MaterialTheme.typography.labelLarge)
+  }
+}
+
+@Composable
+private fun IconControlButton(
+  icon: ImageVector,
+  description: String,
+  onClick: () -> Unit,
+  modifier: Modifier = Modifier,
+  label: String? = null,
+  accent: Color = MaterialTheme.colorScheme.primary,
+  height: androidx.compose.ui.unit.Dp? = null,
+) {
+  Button(
+    onClick = onClick,
+    modifier = modifier.then(if (height != null) Modifier.height(height) else Modifier).semantics {
+      contentDescription = description
+    },
+    shape = RoundedCornerShape(18.dp),
+    colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = MaterialTheme.colorScheme.onPrimary),
+    border = BorderStroke(1.dp, accent.copy(alpha = 0.86f)),
+    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
+  ) {
+    Icon(icon, contentDescription = null, modifier = Modifier.size(if (label == null) 30.dp else 25.dp))
+    if (label != null) {
+      Spacer(Modifier.width(5.dp))
+      Text(label, style = MaterialTheme.typography.labelLarge)
+    }
+  }
 }
 
 @Composable

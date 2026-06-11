@@ -51,7 +51,7 @@ fun SettingsScreen(
         SettingsRow("Haptics", "Feel rotations, drops, and clears.") {
           Switch(preferences.hapticsEnabled, repository::setHapticsEnabled)
         }
-        SettingsRow("Sound", "Keep arcade audio ready for play.") {
+        SettingsRow("Music and sound", "Play the neon soundtrack and game effects.") {
           Switch(preferences.soundEnabled, repository::setSoundEnabled)
         }
         SettingsRow("Reduced motion", "Replace spatial effects with instant feedback.") {
