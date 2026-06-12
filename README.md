@@ -50,8 +50,14 @@ Neon Tetris is a polished Kotlin Multiplatform falling-block puzzle game for And
 ## Targets
 
 - **Android:** production APK with native `SharedPreferences`, `AudioTrack`, effects, haptics, and lifecycle integration.
-- **Desktop:** runnable Compose desktop application with persistent preferences, native Java Sound audio, and a macOS DMG distribution.
-- **iOS:** SwiftUI host application backed by the shared Compose `MainViewController`, `NSUserDefaults`, AVAudioEngine music, and native effects.
+- **Desktop:** runnable Compose JVM application with persistent preferences, native Java Sound audio, responsive window sizing, and a macOS DMG distribution.
+- **iOS:** SwiftUI host generated with XcodeGen and backed by the shared Compose `MainViewController`, `NSUserDefaults`, AVAudioEngine music, and native effects.
+
+| Target | Host | Shared implementation | Verified environment |
+| --- | --- | --- | --- |
+| Android | `app` Android application | Engine, state, Compose UI, music, and settings contract | `Resizable_Experimental`, 1080 x 2400 |
+| Desktop | `shared` JVM entry point | Engine, state, Compose UI, and procedural soundtrack | macOS, 1512 x 871 wide window |
+| iOS | `iosApp` SwiftUI/XcodeGen host | Engine, state, Compose UI, and soundtrack synthesis | iPhone 17 Pro, iOS 26.5 |
 
 ## Architecture
 
@@ -106,14 +112,16 @@ Each checkpoint is committed and pushed independently so the repository history 
 
 ## Screenshots
 
+### Android
+
 <table>
   <tr>
     <th>Home</th>
     <th>Gameplay</th>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/home.png" width="280" alt="Neon Tetris home screen"></td>
-    <td><img src="docs/screenshots/gameplay.png" width="280" alt="Neon Tetris gameplay screen"></td>
+    <td><img src="docs/screenshots/android-home.png" width="280" alt="Neon Tetris Android home screen"></td>
+    <td><img src="docs/screenshots/android-gameplay.png" width="280" alt="Neon Tetris Android gameplay screen"></td>
   </tr>
   <tr>
     <th>Pause</th>
@@ -123,17 +131,35 @@ Each checkpoint is committed and pushed independently so the repository history 
     <td><img src="docs/screenshots/paused.png" width="280" alt="Neon Tetris pause overlay"></td>
     <td><img src="docs/screenshots/settings.png" width="280" alt="Neon Tetris settings screen"></td>
   </tr>
+</table>
+
+### Desktop
+
+<table>
   <tr>
-    <th>iOS Home</th>
-    <th>iOS Gameplay</th>
+    <th>Wide home</th>
+    <th>Wide gameplay</th>
   </tr>
   <tr>
-    <td><img src="docs/screenshots/ios-home.png" width="280" alt="Neon Tetris home screen on iOS"></td>
-    <td><img src="docs/screenshots/ios-gameplay.png" width="280" alt="Neon Tetris gameplay screen on iOS"></td>
+    <td><img src="docs/screenshots/desktop-home.png" width="560" alt="Neon Tetris desktop home screen in a wide window"></td>
+    <td><img src="docs/screenshots/desktop-gameplay.png" width="560" alt="Neon Tetris desktop gameplay with a height-bounded board and visible controls"></td>
   </tr>
 </table>
 
-Android captures use the `Resizable_Experimental` emulator at 1080 x 2400. iOS captures use an iPhone 17 Pro simulator on iOS 26.5 after visual and accessibility-hierarchy review.
+### iOS
+
+<table>
+  <tr>
+    <th>Home</th>
+    <th>Gameplay</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios-home.png" width="280" alt="Neon Tetris iOS home screen"></td>
+    <td><img src="docs/screenshots/ios-gameplay.png" width="280" alt="Neon Tetris iOS gameplay screen"></td>
+  </tr>
+</table>
+
+The six home/gameplay captures were regenerated from the current source. Android uses `Resizable_Experimental` at 1080 x 2400, desktop uses a 1512 x 871 wide window, and iOS uses an iPhone 17 Pro simulator on iOS 26.5. Each screen was visually reviewed after capture.
 
 ## Verification
 
@@ -142,17 +168,34 @@ Android captures use the `Resizable_Experimental` emulator at 1080 x 2400. iOS c
 - Three production-activity Compose journeys pass on `Resizable_Experimental`.
 - Shared UI and platform code compile for iOS x64, arm64, and simulator arm64 targets.
 - The complete unsigned iPhoneOS app links as an arm64 device application with Xcode 26.5.
-- The iOS app launches on an iPhone 17 Pro simulator running iOS 26.5; home, gameplay, controls, and Hold state were exercised.
-- Desktop application launches and packages as `shared/build/compose/binaries/main/dmg/Neon Tetris-1.0.0.dmg`.
-- The Android home screen was visually rechecked at 1080 x 2400 after migration.
+- The iOS app builds and launches on an iPhone 17 Pro simulator running iOS 26.5; home and gameplay were exercised through the accessibility hierarchy.
+- The desktop application launches at its portrait default and remains bounded when resized to 1512 x 871; the board, HUD, previews, and both control rows remain visible.
+- Desktop packages as `shared/build/compose/binaries/main/dmg/Neon Tetris-1.0.0.dmg`.
+- Android home and gameplay were visually rechecked at 1080 x 2400 on `Resizable_Experimental`.
 
 ## Build
 
 ```bash
 ./gradlew :app:assembleDebug
 ./gradlew :shared:desktopTest :shared:testAndroidHostTest
-./gradlew :shared:run
 ./gradlew :shared:compileKotlinIosSimulatorArm64
+```
+
+Run Android on the verified emulator:
+
+```bash
+android emulator start Resizable_Experimental
+android run \
+  --device=emulator-5554 \
+  --type=ACTIVITY \
+  --activity=com.himugupta.neontetris.MainActivity \
+  --apks=app/build/outputs/apk/debug/app-debug.apk
+```
+
+Run desktop directly from Gradle:
+
+```bash
+./gradlew :shared:run
 ```
 
 Generate and open the iOS host project:
@@ -161,6 +204,24 @@ Generate and open the iOS host project:
 cd iosApp
 xcodegen generate
 open NeonTetrisIOS.xcodeproj
+```
+
+Build and launch the iOS simulator target from the command line:
+
+```bash
+xcodebuild \
+  -project iosApp/NeonTetrisIOS.xcodeproj \
+  -scheme NeonTetris \
+  -configuration Debug \
+  -sdk iphonesimulator \
+  -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+  -derivedDataPath iosApp/build-simulator \
+  CODE_SIGNING_ALLOWED=NO \
+  build
+
+xcrun simctl install booted \
+  'iosApp/build-simulator/Build/Products/Debug-iphonesimulator/Neon Tetris.app'
+xcrun simctl launch booted com.himugupta.neontetris
 ```
 
 Build the unsigned physical-device target from the command line:
