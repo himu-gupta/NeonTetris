@@ -51,7 +51,7 @@ Neon Tetris is a polished Kotlin Multiplatform falling-block puzzle game for And
 
 - **Android:** production APK with native `SharedPreferences`, `AudioTrack`, effects, haptics, and lifecycle integration.
 - **Desktop:** runnable Compose desktop application with persistent preferences, native Java Sound audio, and a macOS DMG distribution.
-- **iOS:** shared framework target with a Compose `MainViewController`, `NSUserDefaults`, AVAudioEngine music, and native effects. Full framework linking requires Xcode.
+- **iOS:** SwiftUI host application backed by the shared Compose `MainViewController`, `NSUserDefaults`, AVAudioEngine music, and native effects.
 
 ## Architecture
 
@@ -76,6 +76,9 @@ shared/src/desktopMain/
 
 shared/src/iosMain/
   Compose UIViewController, NSUserDefaults, AVAudioEngine, and native effects
+
+iosApp/
+  SwiftUI application host, Info.plist, and generated Xcode project
 ```
 
 The engine receives explicit actions and time steps and returns immutable state. Compose renders that state, while the ViewModel owns the frame loop, lifecycle behavior, persistence coordination, and one-shot feedback events.
@@ -120,9 +123,17 @@ Each checkpoint is committed and pushed independently so the repository history 
     <td><img src="docs/screenshots/paused.png" width="280" alt="Neon Tetris pause overlay"></td>
     <td><img src="docs/screenshots/settings.png" width="280" alt="Neon Tetris settings screen"></td>
   </tr>
+  <tr>
+    <th>iOS Home</th>
+    <th>iOS Gameplay</th>
+  </tr>
+  <tr>
+    <td><img src="docs/screenshots/ios-home.png" width="280" alt="Neon Tetris home screen on iOS"></td>
+    <td><img src="docs/screenshots/ios-gameplay.png" width="280" alt="Neon Tetris gameplay screen on iOS"></td>
+  </tr>
 </table>
 
-Captured from the `Resizable_Experimental` Android emulator at 1080 x 2400 after visual and accessibility-hierarchy review.
+Android captures use the `Resizable_Experimental` emulator at 1080 x 2400. iOS captures use an iPhone 17 Pro simulator on iOS 26.5 after visual and accessibility-hierarchy review.
 
 ## Verification
 
@@ -130,8 +141,9 @@ Captured from the `Resizable_Experimental` Android emulator at 1080 x 2400 after
 - Six deterministic shared engine tests pass on Android host and desktop targets.
 - Three production-activity Compose journeys pass on `Resizable_Experimental`.
 - Shared UI and platform code compile for iOS x64, arm64, and simulator arm64 targets.
+- The complete unsigned iPhoneOS app links as an arm64 device application with Xcode 26.5.
+- The iOS app launches on an iPhone 17 Pro simulator running iOS 26.5; home, gameplay, controls, and Hold state were exercised.
 - Desktop application launches and packages as `shared/build/compose/binaries/main/dmg/Neon Tetris-1.0.0.dmg`.
-- iOS framework linking is not available on this machine because full Xcode is not installed.
 - The Android home screen was visually rechecked at 1080 x 2400 after migration.
 
 ## Build
@@ -142,6 +154,30 @@ Captured from the `Resizable_Experimental` Android emulator at 1080 x 2400 after
 ./gradlew :shared:run
 ./gradlew :shared:compileKotlinIosSimulatorArm64
 ```
+
+Generate and open the iOS host project:
+
+```bash
+cd iosApp
+xcodegen generate
+open NeonTetrisIOS.xcodeproj
+```
+
+Build the unsigned physical-device target from the command line:
+
+```bash
+xcodebuild \
+  -project iosApp/NeonTetrisIOS.xcodeproj \
+  -target NeonTetris \
+  -configuration Debug \
+  -sdk iphoneos \
+  CODE_SIGNING_ALLOWED=NO \
+  ARCHS=arm64 \
+  ONLY_ACTIVE_ARCH=YES \
+  build
+```
+
+For a real iPhone or iPad, connect and trust the device, select an Apple development team in Xcode, choose the device, and run the `NeonTetris` scheme.
 
 Create the macOS DMG with a full JDK 17 that includes `jpackage`:
 

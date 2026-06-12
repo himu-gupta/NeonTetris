@@ -580,8 +580,9 @@ private fun TextControlButton(
         disabledContentColor = InkMuted,
       ),
     border = BorderStroke(1.dp, accent.copy(alpha = 0.86f)),
+    contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp),
   ) {
-    Text(label, style = MaterialTheme.typography.labelLarge)
+    Text(label, style = MaterialTheme.typography.labelLarge, maxLines = 1, softWrap = false)
   }
 }
 

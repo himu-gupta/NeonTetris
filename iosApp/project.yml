@@ -1,0 +1,33 @@
+name: NeonTetrisIOS
+
+options:
+  bundleIdPrefix: com.himugupta
+  deploymentTarget:
+    iOS: "15.0"
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+
+targets:
+  NeonTetris:
+    type: application
+    platform: iOS
+    sources:
+      - NeonTetris
+    settings:
+      base:
+        CODE_SIGN_STYLE: Automatic
+        FRAMEWORK_SEARCH_PATHS: "$(inherited) $(SRCROOT)/../shared/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)"
+        GENERATE_INFOPLIST_FILE: NO
+        INFOPLIST_FILE: NeonTetris/Info.plist
+        OTHER_LDFLAGS: "$(inherited) -framework NeonTetrisShared"
+        PRODUCT_BUNDLE_IDENTIFIER: com.himugupta.neontetris
+        PRODUCT_NAME: Neon Tetris
+        TARGETED_DEVICE_FAMILY: "1,2"
+    preBuildScripts:
+      - name: Build shared Kotlin framework
+        basedOnDependencyAnalysis: false
+        script: |
+          cd "$SRCROOT/.."
+          ./gradlew :shared:embedAndSignAppleFrameworkForXcode
