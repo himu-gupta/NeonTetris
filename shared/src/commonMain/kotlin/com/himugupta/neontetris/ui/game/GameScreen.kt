@@ -200,13 +200,18 @@ internal fun GameContent(
         verticalAlignment = Alignment.Top,
       ) {
         SidePreview(label = "HOLD", piece = state.holdPiece, modifier = Modifier.width(58.dp))
-        GameBoard(
-          state = state,
-          ghostEnabled = preferences.ghostEnabled,
-          reducedMotion = preferences.reducedMotion,
-          onAction = onAction,
-          modifier = Modifier.weight(1f),
-        )
+        Box(
+          modifier = Modifier.weight(1f).fillMaxHeight(),
+          contentAlignment = Alignment.Center,
+        ) {
+          GameBoard(
+            state = state,
+            ghostEnabled = preferences.ghostEnabled,
+            reducedMotion = preferences.reducedMotion,
+            onAction = onAction,
+            modifier = Modifier.fillMaxHeight(),
+          )
+        }
         Column(
           modifier = Modifier.width(58.dp),
           verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -345,7 +350,7 @@ private fun GameBoard(
   BoxWithConstraints(
     modifier =
       modifier
-        .aspectRatio(0.5f)
+        .aspectRatio(0.5f, matchHeightConstraintsFirst = true)
         .clip(RoundedCornerShape(14.dp))
         .background(Color(0xFF070C1C))
         .border(1.dp, GridLine, RoundedCornerShape(14.dp))
